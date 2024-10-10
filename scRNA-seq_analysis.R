@@ -13,8 +13,8 @@ library(Matrix)
 library(DropletUtils)
 ### Note_Running with Serurat4.4.0
 
-########## scRNA-seq_create_UMAP ##########
-
+########## scRNA-seq_create_UMAP ############################################
+#############################################################################
 ## Load 10xdata and metadata
 r1.data <- Read10X(data.dir = "filtered_feature_bc_matrix_E9_v7")
 r1.metadata <- read.csv(file = "E9_v7_meta.csv", row.names = 1)
@@ -165,3 +165,78 @@ DimPlot(object = r1.dim40.res0.01.UMAP, reduction = "umap", label = TRUE, pt.siz
 write.csv(r1.dim40.res0.01.UMAP@reductions$umap@cell.embeddings, file = paste("r1.UMAPcoordinates.dim40.res0.01", ".csv", sep=""))
 write.csv(r1.dim40.res0.01.UMAP@active.ident, file = paste("r1.Seuratcoordinates.dim40.res0.01", ".csv", sep=""))
 ### These files were imported into the loupe browser to view gene expression.
+
+
+########## Bmpr1a-AEC vs Bmpr1a-AEC #########################################
+#############################################################################
+## Extraction of AEC cluster
+subset.r1 <- subset(r1.dim50.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
+subset.r1
+subset.r1_Dll4<- subset(x = subset.r1, subset = Dll4 > 0.1)
+subset.r1_Dll4
+
+#Renaming clusters
+Idents(r1.dim50.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 > 0.1, slot = 'data')) <- 'Dll4.pos'
+Idents(r1.dim50.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 <= 0.1, slot = 'data')) <- 'Dll4.neg'
+
+## Bmpr1a+ vs Bmpr1a-
+Idents(subset.r1_Dll4, WhichCells(object = subset.r1_Dll4, expression = Bmpr1a > 0.23, slot = 'data')) <- 'Bmpr1a.pos'
+Idents(subset.r1_Dll4, WhichCells(object = subset.r1_Dll4, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
+Bmpr1a.genes <- FindMarkers(subset.r1_Dll4, ident.1 = 'Bmpr1a.pos', ident.2 = 'Bmpr1a.neg',min.pct = 0.25,logfc.threshold = 0)
+Bmpr1a.genes
+write.csv(x = head(x = Bmpr1a.genes, n=2000000), file = "Bmpr1a.Pos.Neg_in_Cdh5+Dll4+EC_re.csv")
+
+## Plotting volcano
+with(Bmpr1aCdh5Dll4.Pos.Neg, plot(avg_log2FC, -log10(p_val_adj), pch = 1, cex = 1.12, main = "Volcano_plot_Bmpr1a.Pos_Neg",xlim = c(-1.5, 1.5), ylim = c(0, 3.5) ))
+abline(v = 0.58496, col= 'black', lty=2) 
+abline(v = -0.58496, col= 'black', lty=2)
+abline(h = 1.301, col ='black', lty=2 )
+with(subset(Bmpr1aCdh5Dll4.Pos.Neg, (avg_log2FC) < -0.58496 & (-log10(p_val_adj)) > 1.301), points(avg_log2FC, -log10(p_val_adj), pch = 20, cex = 1.5, col = "blue"))
+with(subset(Bmpr1aCdh5Dll4.Pos.Neg, (avg_log2FC) > 0.58496 & (-log10(p_val_adj)) > 1.301) ,points(avg_log2FC, -log10(p_val_adj), pch = 20, cex = 1.5, col = "Red"))
+with(subset(Bmpr1aCdh5Dll4.Pos.Neg, (avg_log2FC) > 0.58496 & (-log10(p_val_adj)) > 1.301) , textxy(avg_log2FC, -log10(p_val_adj), labs = genes , cex = 0.5))
+
+
+
+########## Ligand_Exp_in Bmpr1a-EC and Receptor_Exp_in Bmpr1a+ HEC ##########
+#############################################################################
+## Extraction of Cdh5+ EC cluster
+subset.r1 <- subset(r1.dim50.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
+subset.r1
+subset.r1_Cdh5<- subset(x = subset.r1, subset = Cdh5 > 0.29)
+subset.r1_Cdh5
+DimPlot(subset.r1_Cdh5, label = TRUE, pt.size = 2, label.size = 10)
+### These Cdh5+ ECs did not express Ptprc and Itga2b.
+
+## Extraction of Bmpr1a- EC and Bmpr1a+Runx1+ HEC
+Idents(r1.dim50.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a > 0.23 & Runx1 > 0.12, slot = 'data')) <- 'Bmpr1a.posRunx1.pos'
+Idents(r1.dim50.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
+
+## Geneset import : Get the receptor-ligand list from Dimitrov 2022
+features1<- (file= "Ligand_list.csv")
+features2<- (file= "Receptor_list.csv")
+
+#Extraction of raw data of average expression levels and expression ratios of all Ligand lists, and normalized expression levels
+g1 <- DotPlot(object = r1.dim50.res0.01.UMAP, features = features1, assay="RNA")
+View(g1$data)
+write.csv(g1$data, file = "Dotplpt_data_ligand.csv")
+
+#Extraction of raw data of average expression levels and expression ratios of all receptors, and normalized expression levels
+g2 <- DotPlot(object = r1.dim50.res0.01.UMAP, features = features5, assay="RNA")
+View(g1$data)
+write.csv(g2$data, file = "Dotplpt_data_receptor.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
