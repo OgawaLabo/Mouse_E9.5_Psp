@@ -1,0 +1,167 @@
+## load libraries
+library(Seurat)
+library(biomaRt)
+library(calibrate)
+library(cowplot)
+library(dplyr)
+library(EnhancedVolcano)
+library(ggplot2)
+library(patchwork)
+library(pheatmap)
+library(uwot)
+library(Matrix)
+library(DropletUtils)
+### Note_Running with Serurat4.4.0
+
+########## scRNA-seq_create_UMAP ##########
+
+## Load 10xdata and metadata
+r1.data <- Read10X(data.dir = "filtered_feature_bc_matrix_E9_v7")
+r1.metadata <- read.csv(file = "E9_v7_meta.csv", row.names = 1)
+
+## Create Seurat object
+r1 <- CreateSeuratObject(r1.data, project = "r1", meta.data = r1.metadata, min.features =  100)
+r1
+
+## Explore metadata
+View(r1@meta.data)
+
+## Add number of genes per UMI for each cell to metadata
+r1$log10GenesPerUMI <- log10(r1$nFeature_RNA) / log10(r1$nCount_RNA)
+
+## Compute percent mito ratio
+r1$mitoRatio <- PercentageFeatureSet(r1, pattern = "^mt-")
+r1$mitoRatio <- r1@meta.data$mitoRatio / 100
+
+## Create metadata dataframe
+metadata <- r1@meta.data
+metadata <- metadata %>% dplyr::rename(seq.folder = orig.ident, nUMI = nCount_RNA, nGene = nFeature_RNA)
+
+## Add metadata back to Seurat object
+r1@meta.data <- metadata
+
+## Visualize the number of cell counts per sample
+metadata %>% 
+  ggplot(aes(x = stage, fill = stage)) + 
+  geom_bar() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  ggtitle("nCells_r1")
+
+## Visualize the number UMIs counts per cell via histogram
+metadata %>% 
+  ggplot(aes(color = stage, x = nUMI, fill = stage)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("Cell density") +
+  geom_vline(xintercept = 7300)+
+  ggtitle("nUMIs_per_nCells")
+
+## Visualize the distribution of genes detected per cell via histogram
+metadata %>% 
+  ggplot(aes(color = stage, x = nGene, fill = stage)) + 
+  geom_density(alpha = 0.2) + 
+  theme_classic() +
+  scale_x_log10() + 
+  geom_vline(xintercept = 2300) +
+  ggtitle("nCells_vs_nGenes")
+
+## Visualize the correlation between genes detected and number of UMIs and determine whether strong presence of cells with low numbers of genes/UMIs
+metadata %>% 
+  ggplot(aes(x = nUMI, y = nGene, color = mitoRatio)) + 
+  geom_point() + 
+  scale_colour_gradient(low = "gray90", high = "black") +
+  stat_smooth(method = lm) +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 7300) +
+  geom_hline(yintercept = 2300) +
+  facet_wrap(~stage) +
+  ggtitle("correlation_of_nGene_and_nUMI")
+
+## Visualize the distribution of mitochondrial gene expression detected per cell via histogram
+metadata %>% 
+  ggplot(aes(color = stage, x = mitoRatio, fill = stage)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 0.1) +
+  ggtitle("mitoRatio")
+
+## Visualize the overall complexity of the gene expression by visualizing the genes detected per UMI via histogram
+metadata %>%
+  ggplot(aes(x = log10GenesPerUMI, color = stage, fill = stage)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  geom_vline(xintercept = 0.8) +
+  ggtitle("genes_detected_per_UMI")
+
+
+## Filter out low quality reads using selected thresholds - these will change with experiment
+r1 <- subset(x = r1, 
+             subset = (nUMI >= 7300) & 
+               (nGene >= 2300) & 
+               (log10GenesPerUMI > 0.8) & 
+               (mitoRatio < 0.1))
+r1
+
+## Visualize the number of cell counts per sample after filtration
+r1@meta.data %>% 
+  ggplot(aes(x = stage, fill = stage)) + 
+  geom_bar() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  ggtitle("nCells_filtered")
+
+## Visualize QC metrics of filtered object
+VlnPlot(r1, features = c("nUMI", "nGene", "mitoRatio"), ncol = 3, pt.size = 0.2)
+
+## Normalizing data (Log-normalization)
+r1 <- NormalizeData(r1, normalization.method = "LogNormalize", scale.factor = 10000)
+r1 <- NormalizeData(r1)
+
+## A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat
+## segregate this list into markers of G2/M phase and markers of S phase
+s.genes <- mouse.cc.genes$s.genes
+g2m.genes <- mouse.cc.genes$g2m.genes
+
+## Cell cycle scoring
+r1 <- CellCycleScoring(r1, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+r1$CC.Difference <- r1$S.Score - r1$G2M.Score
+
+## Scaling data
+r1 <- ScaleData(r1, vars.to.regress = c("mitoRatio", "CC.Difference"), features = rownames(r1), verbose = TRUE)
+
+## Performing linear dimensional reduction (PCA)
+r1 <- RunPCA(r1, features = rownames(r1), npcs =100, verbose = FALSE)
+
+
+## Examining and visualizing PCA results a few different ways
+print(x = r1[["pca"]], dims = 1:5, nfeatures = 5)
+VizDimLoadings(object = r1, dims = 1:2, reduction = "pca")
+DimPlot(object = r1, reduction = "pca")
+
+## Determining the 'dimensionality' of the dataset
+ElbowPlot(object = r1, ndims = 40)
+
+## Cluster the cells
+r1.dim40 <- FindNeighbors(object = r1, reduction = "pca", dims = 1:40, nn.eps = 0)
+
+## Save RDS (dimension determined object)
+saveRDS(r1.dim40, file = "r1.dim40.rds")
+
+## Determine resolution
+r1.dim40.res0.01<- FindClusters(r1.dim40, resolution = 0.01, n.start = 10, algorithm = 3)
+
+## Visualize UMAP
+r1.dim40.res0.01.UMAP <- RunUMAP(object = r1.dim40.res0.01, dims = 1:40)
+DimPlot(object = r1.dim40.res0.01.UMAP, reduction = "umap", label = TRUE, pt.size = 0.2, group.by = "seurat_clusters", label.size = 5) + ggtitle("r1.dim40.res0.01.UMAP")
+
+## Export coordination data of UMAP
+write.csv(r1.dim40.res0.01.UMAP@reductions$umap@cell.embeddings, file = paste("r1.UMAPcoordinates.dim40.res0.01", ".csv", sep=""))
+write.csv(r1.dim40.res0.01.UMAP@active.ident, file = paste("r1.Seuratcoordinates.dim40.res0.01", ".csv", sep=""))
+### These files were imported into the loupe browser to view gene expression.
