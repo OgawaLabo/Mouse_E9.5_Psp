@@ -170,14 +170,14 @@ write.csv(r1.dim40.res0.01.UMAP@active.ident, file = paste("r1.Seuratcoordinates
 ########## Bmpr1a-AEC vs Bmpr1a-AEC #########################################
 #############################################################################
 ## Extraction of AEC cluster
-subset.r1 <- subset(r1.dim50.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
+subset.r1 <- subset(r1.dim40.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
 subset.r1
 subset.r1_Dll4<- subset(x = subset.r1, subset = Dll4 > 0.1)
 subset.r1_Dll4
 
 #Renaming clusters
-Idents(r1.dim50.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 > 0.1, slot = 'data')) <- 'Dll4.pos'
-Idents(r1.dim50.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 <= 0.1, slot = 'data')) <- 'Dll4.neg'
+Idents(r1.dim40.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 > 0.1, slot = 'data')) <- 'Dll4.pos'
+Idents(r1.dim40.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 <= 0.1, slot = 'data')) <- 'Dll4.neg'
 
 ## Bmpr1a+ vs Bmpr1a-
 Idents(subset.r1_Dll4, WhichCells(object = subset.r1_Dll4, expression = Bmpr1a > 0.23, slot = 'data')) <- 'Bmpr1a.pos'
@@ -200,7 +200,7 @@ with(subset(Bmpr1aCdh5Dll4.Pos.Neg, (avg_log2FC) > 0.58496 & (-log10(p_val_adj))
 ########## Ligand_Exp_in Bmpr1a-EC and Receptor_Exp_in Bmpr1a+ HEC ##########
 #############################################################################
 ## Extraction of Cdh5+ EC cluster
-subset.r1 <- subset(r1.dim50.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
+subset.r1 <- subset(r1.dim40.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
 subset.r1
 subset.r1_Cdh5<- subset(x = subset.r1, subset = Cdh5 > 0.29)
 subset.r1_Cdh5
@@ -208,20 +208,20 @@ DimPlot(subset.r1_Cdh5, label = TRUE, pt.size = 2, label.size = 10)
 ### These Cdh5+ ECs did not express Ptprc and Itga2b.
 
 ## Extraction of Bmpr1a- EC and Bmpr1a+Runx1+ HEC
-Idents(r1.dim50.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a > 0.23 & Runx1 > 0.12, slot = 'data')) <- 'Bmpr1a.posRunx1.pos'
-Idents(r1.dim50.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
+Idents(r1.dim40.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a > 0.23 & Runx1 > 0.12, slot = 'data')) <- 'Bmpr1a.posRunx1.pos'
+Idents(r1.dim40.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
 
 ## Geneset import : Get the receptor-ligand list from Dimitrov 2022
 features1<- (file= "Ligand_list.csv")
 features2<- (file= "Receptor_list.csv")
 
 #Extraction of raw data of average expression levels and expression ratios of all Ligand lists, and normalized expression levels
-g1 <- DotPlot(object = r1.dim50.res0.01.UMAP, features = features1, assay="RNA")
+g1 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features1, assay="RNA")
 View(g1$data)
 write.csv(g1$data, file = "Dotplpt_data_ligand.csv")
 
 #Extraction of raw data of average expression levels and expression ratios of all receptors, and normalized expression levels
-g2 <- DotPlot(object = r1.dim50.res0.01.UMAP, features = features5, assay="RNA")
+g2 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features5, assay="RNA")
 View(g1$data)
 write.csv(g2$data, file = "Dotplpt_data_receptor.csv")
 
