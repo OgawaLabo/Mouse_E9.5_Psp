@@ -22,8 +22,6 @@ r1.metadata <- read.csv(file = "E9_v7_meta.csv", row.names = 1)
 ## Create Seurat object
 r1 <- CreateSeuratObject(r1.data, project = "r1", meta.data = r1.metadata, min.features =  100)
 r1
-
-## Explore metadata
 View(r1@meta.data)
 
 ## Add number of genes per UMI for each cell to metadata
@@ -36,8 +34,6 @@ r1$mitoRatio <- r1@meta.data$mitoRatio / 100
 ## Create metadata dataframe
 metadata <- r1@meta.data
 metadata <- metadata %>% dplyr::rename(seq.folder = orig.ident, nUMI = nCount_RNA, nGene = nFeature_RNA)
-
-## Add metadata back to Seurat object
 r1@meta.data <- metadata
 
 ## Visualize the number of cell counts per sample
@@ -206,6 +202,7 @@ subset.r1_Cdh5<- subset(x = subset.r1, subset = Cdh5 > 0.29)
 subset.r1_Cdh5
 DimPlot(subset.r1_Cdh5, label = TRUE, pt.size = 2, label.size = 10)
 ### These Cdh5+ ECs did not express Ptprc and Itga2b.
+
 
 ## Extraction of Bmpr1a- EC and Bmpr1a+Runx1+ HEC
 Idents(r1.dim40.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a > 0.23 & Runx1 > 0.12, slot = 'data')) <- 'Bmpr1a.posRunx1.pos'
