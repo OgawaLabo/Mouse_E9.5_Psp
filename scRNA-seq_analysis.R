@@ -1,13 +1,11 @@
 ## load libraries
+library(dplyr)
 library(Seurat)
+library(patchwork)
 library(biomaRt)
 library(calibrate)
 library(cowplot)
-library(dplyr)
-library(EnhancedVolcano)
 library(ggplot2)
-library(patchwork)
-library(pheatmap)
 library(uwot)
 library(Matrix)
 library(DropletUtils)
@@ -113,28 +111,17 @@ r1@meta.data %>%
   theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
   ggtitle("nCells_filtered")
 
-## Visualize QC metrics of filtered object
 VlnPlot(r1, features = c("nUMI", "nGene", "mitoRatio"), ncol = 3, pt.size = 0.2)
 
 ## Normalizing data (Log-normalization)
 r1 <- NormalizeData(r1, normalization.method = "LogNormalize", scale.factor = 10000)
 r1 <- NormalizeData(r1)
 
-## A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat
-## segregate this list into markers of G2/M phase and markers of S phase
-s.genes <- mouse.cc.genes$s.genes
-g2m.genes <- mouse.cc.genes$g2m.genes
-
-## Cell cycle scoring
-r1 <- CellCycleScoring(r1, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-r1$CC.Difference <- r1$S.Score - r1$G2M.Score
-
 ## Scaling data
 r1 <- ScaleData(r1, vars.to.regress = c("mitoRatio", "CC.Difference"), features = rownames(r1), verbose = TRUE)
 
-## Performing linear dimensional reduction (PCA)
+## PCA
 r1 <- RunPCA(r1, features = rownames(r1), npcs =100, verbose = FALSE)
-
 
 ## Examining and visualizing PCA results a few different ways
 print(x = r1[["pca"]], dims = 1:5, nfeatures = 5)
@@ -147,27 +134,24 @@ ElbowPlot(object = r1, ndims = 40)
 ## Cluster the cells
 r1.dim40 <- FindNeighbors(object = r1, reduction = "pca", dims = 1:40, nn.eps = 0)
 
-## Save RDS (dimension determined object)
-saveRDS(r1.dim40, file = "r1.dim40.rds")
-
 ## Determine resolution
 r1.dim40.res0.01<- FindClusters(r1.dim40, resolution = 0.01, n.start = 10, algorithm = 3)
 
 ## Visualize UMAP
 r1.dim40.res0.01.UMAP <- RunUMAP(object = r1.dim40.res0.01, dims = 1:40)
-DimPlot(object = r1.dim40.res0.01.UMAP, reduction = "umap", label = TRUE, pt.size = 0.2, group.by = "seurat_clusters", label.size = 5) + ggtitle("r1.dim40.res0.01.UMAP")
+DimPlot(object = r1.dim40.res0.01.UMAP, reduction = "umap", label = TRUE, pt.size = 0.2, group.by = "seurat_clusters", label.size = 5) + ggtitle("UMAP")
 
 ## Export coordination data of UMAP
-write.csv(r1.dim40.res0.01.UMAP@reductions$umap@cell.embeddings, file = paste("r1.UMAPcoordinates.dim40.res0.01", ".csv", sep=""))
-write.csv(r1.dim40.res0.01.UMAP@active.ident, file = paste("r1.Seuratcoordinates.dim40.res0.01", ".csv", sep=""))
-### These files were imported into the loupe browser to view gene expression.
+write.csv(r1.dim40.res0.01.UMAP@reductions$umap@cell.embeddings, file = paste(" ", ".csv", sep=""))
+write.csv(r1.dim40.res0.01.UMAP@active.ident, file = paste(" ", ".csv", sep=""))
+#### These files were imported into the loupe browser to view gene expression.
 
 
-########## Bmpr1a-AEC vs Bmpr1a-AEC #########################################
+
+########## Bmpr1a+ AEC vs Bmpr1a-AEC #########################################
 #############################################################################
 ## Extraction of AEC cluster
 subset.r1 <- subset(r1.dim40.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
-subset.r1
 subset.r1_Dll4<- subset(x = subset.r1, subset = Dll4 > 0.1)
 subset.r1_Dll4
 
@@ -175,12 +159,12 @@ subset.r1_Dll4
 Idents(r1.dim40.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 > 0.1, slot = 'data')) <- 'Dll4.pos'
 Idents(r1.dim40.res0.01.UMAP.renamed, WhichCells(object = subset.r1, expression = Dll4 <= 0.1, slot = 'data')) <- 'Dll4.neg'
 
-## Bmpr1a+ vs Bmpr1a-
+## Bmpr1a+ AEC vs Bmpr1a- AEC
 Idents(subset.r1_Dll4, WhichCells(object = subset.r1_Dll4, expression = Bmpr1a > 0.23, slot = 'data')) <- 'Bmpr1a.pos'
 Idents(subset.r1_Dll4, WhichCells(object = subset.r1_Dll4, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
 Bmpr1a.genes <- FindMarkers(subset.r1_Dll4, ident.1 = 'Bmpr1a.pos', ident.2 = 'Bmpr1a.neg',min.pct = 0.25,logfc.threshold = 0)
 Bmpr1a.genes
-write.csv(x = head(x = Bmpr1a.genes, n=2000000), file = "Bmpr1a.Pos.Neg_in_Cdh5+Dll4+EC_re.csv")
+write.csv(x = head(x = Bmpr1a.genes), file = ".csv")
 
 ## Plotting volcano
 with(Bmpr1aCdh5Dll4.Pos.Neg, plot(avg_log2FC, -log10(p_val_adj), pch = 1, cex = 1.12, main = "Volcano_plot_Bmpr1a.Pos_Neg",xlim = c(-1.5, 1.5), ylim = c(0, 3.5) ))
@@ -193,34 +177,33 @@ with(subset(Bmpr1aCdh5Dll4.Pos.Neg, (avg_log2FC) > 0.58496 & (-log10(p_val_adj))
 
 
 
+
 ########## Ligand_Exp_in Bmpr1a-EC and Receptor_Exp_in Bmpr1a+ HEC ##########
 #############################################################################
 ## Extraction of Cdh5+ EC cluster
 subset.r1 <- subset(r1.dim40.res0.01.UMAP, idents = c(0, 1, 2, 4), invert = TRUE)
-subset.r1
 subset.r1_Cdh5<- subset(x = subset.r1, subset = Cdh5 > 0.29)
 subset.r1_Cdh5
 DimPlot(subset.r1_Cdh5, label = TRUE, pt.size = 2, label.size = 10)
-### These Cdh5+ ECs did not express Ptprc and Itga2b.
 
-
-## Extraction of Bmpr1a- EC and Bmpr1a+Runx1+ HEC
+## Definition of Bmpr1a- EC and Bmpr1a+Runx1+ HEC
 Idents(r1.dim40.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a > 0.23 & Runx1 > 0.12, slot = 'data')) <- 'Bmpr1a.posRunx1.pos'
 Idents(r1.dim40.res0.01.UMAP, WhichCells(object = subset.r1_Cdh5, expression = Bmpr1a <= 0.23, slot = 'data')) <- 'Bmpr1a.neg'
 
-## Geneset import : Get the receptor-ligand list from Dimitrov 2022
+## Geneset import : Get the receptor-ligand list from Dimitrov Nature communication 2022
+## Extraction of average expression levels, expression ratios, and normalized expression levels
 features1<- (file= "Ligand_list.csv")
-features2<- (file= "Receptor_list.csv")
-
-#Extraction of raw data of average expression levels and expression ratios of all Ligand lists, and normalized expression levels
 g1 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features1, assay="RNA")
 View(g1$data)
-write.csv(g1$data, file = "Dotplpt_data_ligand.csv")
+write.csv(g1$data, file = "ligand.csv")
 
-#Extraction of raw data of average expression levels and expression ratios of all receptors, and normalized expression levels
-g2 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features5, assay="RNA")
+## Geneset import : Get the receptor-ligand list from Dimitrov Nature communication 2022
+## Extraction of average expression levels, expression ratios, and normalized expression levels
+features2<- (file= "Receptor_list.csv")
+g2 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features2, assay="RNA")
 View(g1$data)
-write.csv(g2$data, file = "Dotplpt_data_receptor.csv")
+write.csv(g2$data, file = "receptor.csv")
+#### These csv files were used to perform screening based on the ave. Exp. and pct. Exp. value of the ligand expression in Bmpr1a- EC and the receptor expression in Bmpr1a+ EC.
 
 
 
