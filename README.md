@@ -3,4 +3,3 @@ We provide the code we used to analyze single-cell RNA sequencing (scRNA-seq) da
 
 ### Acknowledgments
 This code is created with reference to [website](https://satijalab.org/seurat/) of Satija et al. For more detail, please refer to the original paper on Seurat V4 by [Hao et al. Cell(2021)](https://doi.org/10.1016/j.cell.2021.04.048).
-
