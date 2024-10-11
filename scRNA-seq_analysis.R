@@ -199,19 +199,3 @@ g2 <- DotPlot(object = r1.dim40.res0.01.UMAP, features = features2, assay="RNA")
 View(g1$data)
 write.csv(g2$data, file = "Receptor.csv")
 #### This csv file was used to perform screening of ligand-receptor sets based on the ave. Exp. and pct. Exp. value of the receptor expression in Bmpr1a+Runx1+ HEC.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
