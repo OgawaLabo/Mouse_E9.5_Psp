@@ -8,7 +8,6 @@ library(cowplot)
 library(ggplot2)
 library(uwot)
 library(Matrix)
-library(DropletUtils)
 ### Note: Performed with Serurat4.4.0
 
 ########## scRNA-seq_create_UMAP ############################################
